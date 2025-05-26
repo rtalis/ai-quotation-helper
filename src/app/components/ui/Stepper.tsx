@@ -48,18 +48,18 @@ const Step: React.FC<StepProps> = ({ title, description, isCompleted, isActive, 
           )}
         </motion.div>
       </div>
-      <motion.div 
+      <motion.div
         className="ml-4"
         initial={{ x: -5, opacity: 0.8 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
         <p className={cn(
-          "text-sm font-medium", 
-          isActive || isCompleted 
-            ? "text-foreground" 
-            : hasError 
-              ? "text-destructive" 
+          "text-sm font-medium",
+          isActive || isCompleted
+            ? "text-foreground"
+            : hasError
+              ? "text-destructive"
               : "text-muted-foreground"
         )}>
           {title}
@@ -75,18 +75,32 @@ interface StepperProps {
   currentStep: number
   onStepChange: (step: number) => void
   stepData?: Record<string, any>
+  allowReturn?: boolean
+  visitedSteps?: number[]
 }
 
-export function Stepper({ steps, currentStep, onStepChange, stepData = {} }: StepperProps) {
-  const [stepStatus, setStepStatus] = React.useState<Array<'incomplete' | 'complete' | 'error'>>(() => 
+export function Stepper({
+  steps,
+  currentStep,
+  onStepChange,
+  stepData = {},
+  allowReturn = false,
+  visitedSteps = []
+}: StepperProps) {
+  const [stepStatus, setStepStatus] = React.useState<Array<'incomplete' | 'complete' | 'error'>>(() =>
     steps.map(() => 'incomplete')
   );
-  const [isValidating, setIsValidating] = React.useState(false);
 
+  const [isValidating, setIsValidating] = React.useState(false);
+  const handleStepClick = (index: number) => {
+    if (allowReturn && (visitedSteps.includes(index) || index < currentStep)) {
+      onStepChange(index);
+    }
+  };
   // Função para verificar se uma etapa está concluída
   const checkStepCompletion = React.useCallback(async (stepIndex: number) => {
     const step = steps[stepIndex];
-    
+
     if (!step.validator) {
       return true; // Se não houver validador, consideramos a etapa concluída
     }
@@ -94,23 +108,23 @@ export function Stepper({ steps, currentStep, onStepChange, stepData = {} }: Ste
     try {
       setIsValidating(true);
       const isValid = await step.validator();
-      
+
       setStepStatus(prev => {
         const newStatus = [...prev];
         newStatus[stepIndex] = isValid ? 'complete' : 'error';
         return newStatus;
       });
-      
+
       return isValid;
     } catch (error) {
       console.error(`Erro ao validar etapa ${stepIndex}:`, error);
-      
+
       setStepStatus(prev => {
         const newStatus = [...prev];
         newStatus[stepIndex] = 'error';
         return newStatus;
       });
-      
+
       return false;
     } finally {
       setIsValidating(false);
@@ -121,7 +135,7 @@ export function Stepper({ steps, currentStep, onStepChange, stepData = {} }: Ste
   const handleNext = async () => {
     if (currentStep < steps.length - 1) {
       const isStepValid = await checkStepCompletion(currentStep);
-      
+
       if (isStepValid) {
         setStepStatus(prev => {
           const newStatus = [...prev];
@@ -141,17 +155,23 @@ export function Stepper({ steps, currentStep, onStepChange, stepData = {} }: Ste
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
+    <div className="w-full mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         {steps.map((step, index) => (
           <React.Fragment key={step.title}>
-            <Step
-              title={step.title}
-              description={step.description}
-              isCompleted={stepStatus[index] === 'complete' || index < currentStep}
-              isActive={index === currentStep}
-              hasError={stepStatus[index] === 'error'}
-            />
+            <div
+              onClick={() => handleStepClick(index)}
+              className={`${(allowReturn && (visitedSteps.includes(index) || index < currentStep)) ? 'cursor-pointer' : ''}`}
+            >
+              <Step
+                title={step.title}
+                description={step.description}
+                isCompleted={stepStatus[index] === 'complete' || index < currentStep}
+                isActive={index === currentStep}
+                hasError={stepStatus[index] === 'error'}
+              />
+            </div>
+
             {index < steps.length - 1 && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -164,7 +184,7 @@ export function Stepper({ steps, currentStep, onStepChange, stepData = {} }: Ste
           </React.Fragment>
         ))}
       </div>
-      
+
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStep}
@@ -177,22 +197,22 @@ export function Stepper({ steps, currentStep, onStepChange, stepData = {} }: Ste
           {/* Aqui você pode renderizar o conteúdo de cada etapa */}
           <h3 className="text-lg font-medium mb-2">{steps[currentStep].title}</h3>
           <p className="text-muted-foreground">{steps[currentStep].description}</p>
-          
+
           {/* Slot para conteúdo dinâmico da etapa */}
           {stepData[`step${currentStep + 1}Content`]}
         </motion.div>
       </AnimatePresence>
-      
+
       <div className="flex justify-between">
-        <Button 
-          variant="outline" 
-          onClick={handlePrevious} 
+        <Button
+          variant="outline"
+          onClick={handlePrevious}
           disabled={currentStep === 0}
         >
           Anterior
         </Button>
-        <Button 
-          onClick={handleNext} 
+        <Button
+          onClick={handleNext}
           disabled={currentStep === steps.length - 1 || isValidating}
         >
           {isValidating ? "Verificando..." : currentStep === steps.length - 1 ? "Concluir" : "Próximo"}
