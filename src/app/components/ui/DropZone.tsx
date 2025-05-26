@@ -42,9 +42,16 @@ const DropZone = ({
     e.stopPropagation();
     unDrag();
     const file = getFile(e);
-    if (!file || (acceptTypes && !acceptTypes.has(file.type))) {
-      return;
+    if (!file) return;
+    
+    if (accept) {
+      const fileExt = `.${file.name.split('.').pop()?.toLowerCase()}`;
+      const acceptList = accept.split(',').map(x => x.trim());
+      if (!acceptList.includes(fileExt)) {
+        return;
+      }
     }
+    
     onFile(file);
   };
 
