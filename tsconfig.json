@@ -4,6 +4,7 @@
     "paths": {
       "@/*": ["./*"],
       "@/lib/*": ["./src/app/lib/*"],
+      "@/app/*": ["./src/app/*"],
       "@/components/*": ["./src/app/components/*"],
     },
 

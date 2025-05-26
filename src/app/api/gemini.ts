@@ -2,12 +2,12 @@ import axios from "axios";
 
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
-export const analyzeTextWithGemini = async (inputText) => {
+export const analyzeTextWithGemini = async (inputText: string) => {
   try {
-    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     
     if (!apiKey) {
-      throw new Error("API key do Gemini não configurada");
+      throw new Error("API key do Gemini não configurada" );
     }
 
     const payload = {
@@ -61,7 +61,7 @@ export const analyzeTextWithGemini = async (inputText) => {
     }
   } catch (error) {
     console.error("Erro na API do Gemini:", error);
-    if (error.response?.data?.error) {
+    if (axios.isAxiosError(error) && error.response?.data?.error) {
       return `Erro: ${error.response.data.error.message}`;
     }
     return "Ocorreu um erro ao conectar com a API do Gemini.";
