@@ -8,8 +8,6 @@ import { ComparisonResultsStep } from "@/app/components/ui/ComparisonResultsStep
 import { ReferenceData, ComparisonResult } from "@/app/types"
 import { toast } from "sonner"
 
-// Definição dos tipos de validadores
-type StepValidator = () => Promise<boolean> | boolean;
 type ContextualValidator = (context: { 
   referenceData: ReferenceData | null; 
   comparisonResults: ComparisonResult | null 
@@ -25,6 +23,7 @@ const stepsDefinition: Array<{
     title: "Adicione a cotação de referencia",
     description: "Envie o arquivo de cotação modelo",
     validator: async ({ referenceData }) => {
+      console.log("Validating reference data:", referenceData);
       if (!referenceData) {
         toast.info("Cotação de referência obrigatória", {
           description: "Por favor, adicione e processe a cotação de referência para continuar.",
@@ -60,7 +59,6 @@ export default function StepperDemo() {
   const [comparisonResults, setComparisonResults] = useState<ComparisonResult | null>(null);
   const [visitedSteps, setVisitedSteps] = useState<Set<number>>(new Set([0]));
 
-  // Função para gerenciar a mudança de etapas com histórico
   const handleStepChange = (step: number) => {
     setCurrentStep(step);
     setVisitedSteps(prev => {
@@ -100,7 +98,6 @@ export default function StepperDemo() {
         <ReferenceQuotationStep 
           onReferenceDataChange={setReferenceData}
           referenceData={referenceData}
-          key="reference-step" // Adicionada key para estabilidade
         />
       </div>
     ),
@@ -109,7 +106,6 @@ export default function StepperDemo() {
         <SupplierQuotationsStep 
           referenceData={referenceData}
           onComparisonResultsChange={setComparisonResults}
-          key="supplier-step" // Adicionada key para estabilidade
         />
       </div>
     ),
@@ -117,7 +113,6 @@ export default function StepperDemo() {
       <div key="step3">
         <ComparisonResultsStep 
           comparisonResults={comparisonResults}
-          key="results-step" // Adicionada key para estabilidade
         />
       </div>
     )

@@ -230,6 +230,7 @@ export function Stepper({
           Anterior
         </Button>
         <Button
+          variant="outline"
           onClick={handleNext}
           disabled={currentStep === steps.length - 1 || isValidating}
         >

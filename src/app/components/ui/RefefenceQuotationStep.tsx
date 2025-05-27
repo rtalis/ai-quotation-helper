@@ -111,12 +111,13 @@ export const ReferenceQuotationStep: React.FC<ReferenceQuotationStepProps> = ({
         accept=".pdf"
       />
 
-      {uploadedFiles.length > 0 && (
+      {(uploadedFiles.length > 0 || referenceData) && (
         <div className="mt-4">
           <h4 className="text-sm font-medium mb-2">Arquivos adicionados</h4>
           <ul className="space-y-2">
+          {uploadedFiles.length > 0 && 
             
-            {uploadedFiles.map((file, index) => (
+            uploadedFiles.map((file, index) => (
               <li
                 key={`${file.name}-${index}`}
                 className="flex items-center justify-between px-3 py-2 rounded-md border bg-card text-card-foreground shadow-sm"
@@ -144,8 +145,10 @@ export const ReferenceQuotationStep: React.FC<ReferenceQuotationStepProps> = ({
             ))}
           </ul>
 
-          <div className="mt-4">
+          <div className="mt-4 max-w-sm right shadow-180px" >
             <Button
+              variant="outline"
+              type="button"
               onClick={processReferenceFile}
               disabled={isProcessing || uploadedFiles.length === 0}
               className="w-full"

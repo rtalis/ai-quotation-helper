@@ -74,6 +74,9 @@ Extraia informações estruturadas desta cotação de referência em PDF. Precis
    - Preço total
    - Fabricante/marca (se disponível)
 
+
+Tenha cautela para não trocar o valor total pelo valor unitário e não confunda com o preço total da cotação.
+
 Observe atentamente os valores e formatos. Retorne um JSON válido com esta estrutura:
 \`\`\`json
 {
@@ -282,7 +285,7 @@ Para cada item encontrado no PDF:
 4. Extraia o nome do fabricante do produto quando disponível
 
 Observe que o fornecedor pode usar códigos ou descrições diferentes, então use aproximação semântica para identificar os itens corretamente.
-
+Tenha cautela para obter o valor unitário do item ao inves do valor total, e não confunda com o preço total da cotação.
 Retorne um JSON válido com esta estrutura:
 \`\`\`json
 {
