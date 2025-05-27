@@ -74,9 +74,10 @@ interface StepperProps {
   steps: Array<{ title: string; description?: string; validator?: () => Promise<boolean> | boolean }>
   currentStep: number
   onStepChange: (step: number) => void
-  stepData?: Record<string, any>
+  stepData?: Record<string, React.ReactNode>
   allowReturn?: boolean
   visitedSteps?: number[]
+  className?: string
 }
 
 export function Stepper({
@@ -85,18 +86,22 @@ export function Stepper({
   onStepChange,
   stepData = {},
   allowReturn = false,
-  visitedSteps = []
+  visitedSteps = [],
+  className
 }: StepperProps) {
   const [stepStatus, setStepStatus] = React.useState<Array<'incomplete' | 'complete' | 'error'>>(() =>
     steps.map(() => 'incomplete')
   );
 
   const [isValidating, setIsValidating] = React.useState(false);
+  
+  // Função para lidar com cliques nos passos
   const handleStepClick = (index: number) => {
     if (allowReturn && (visitedSteps.includes(index) || index < currentStep)) {
       onStepChange(index);
     }
   };
+  
   // Função para verificar se uma etapa está concluída
   const checkStepCompletion = React.useCallback(async (stepIndex: number) => {
     const step = steps[stepIndex];
@@ -155,13 +160,21 @@ export function Stepper({
   };
 
   return (
-    <div className="w-full mx-auto">
+    <div className={cn("w-full", className)}>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         {steps.map((step, index) => (
           <React.Fragment key={step.title}>
             <div
               onClick={() => handleStepClick(index)}
-              className={`${(allowReturn && (visitedSteps.includes(index) || index < currentStep)) ? 'cursor-pointer' : ''}`}
+              className={cn(
+                "flex items-center",
+                (allowReturn && (visitedSteps.includes(index) || index < currentStep)) 
+                  ? 'cursor-pointer hover:opacity-80 transition-opacity'
+                  : ''
+              )}
+              role={allowReturn && (visitedSteps.includes(index) || index < currentStep) ? "button" : undefined}
+              tabIndex={allowReturn && (visitedSteps.includes(index) || index < currentStep) ? 0 : undefined}
+              aria-label={allowReturn && (visitedSteps.includes(index) || index < currentStep) ? `Ir para etapa ${step.title}` : undefined}
             >
               <Step
                 title={step.title}
@@ -177,6 +190,7 @@ export function Stepper({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
+                className="flex-shrink-0"
               >
                 <ChevronRight className="hidden md:block text-muted-foreground" />
               </motion.div>
@@ -192,11 +206,15 @@ export function Stepper({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -10, opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="mb-6 p-4 border rounded-md bg-card"
+          className="mb-6 p-4 border rounded-md bg-card w-full"
         >
-          {/* Aqui você pode renderizar o conteúdo de cada etapa */}
-          <h3 className="text-lg font-medium mb-2">{steps[currentStep].title}</h3>
-          <p className="text-muted-foreground">{steps[currentStep].description}</p>
+          {/* Conteúdo da etapa atual */}
+          {steps[currentStep]?.description && (
+            <>
+              <h3 className="text-lg font-medium mb-2">{steps[currentStep].title}</h3>
+              <p className="text-muted-foreground mb-4">{steps[currentStep].description}</p>
+            </>
+          )}
 
           {/* Slot para conteúdo dinâmico da etapa */}
           {stepData[`step${currentStep + 1}Content`]}

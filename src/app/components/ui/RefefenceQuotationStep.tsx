@@ -115,6 +115,7 @@ export const ReferenceQuotationStep: React.FC<ReferenceQuotationStepProps> = ({
         <div className="mt-4">
           <h4 className="text-sm font-medium mb-2">Arquivos adicionados</h4>
           <ul className="space-y-2">
+            
             {uploadedFiles.map((file, index) => (
               <li
                 key={`${file.name}-${index}`}

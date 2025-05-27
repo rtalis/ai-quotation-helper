@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev'],
+
   reactStrictMode: true,
   env: {
     BASE_URL: process.env.BASE_URL,

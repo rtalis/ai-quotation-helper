@@ -8,16 +8,26 @@ import { ComparisonResultsStep } from "@/app/components/ui/ComparisonResultsStep
 import { ReferenceData, ComparisonResult } from "@/app/types"
 import { toast } from "sonner"
 
-const steps = [
+// Definição dos tipos de validadores
+type StepValidator = () => Promise<boolean> | boolean;
+type ContextualValidator = (context: { 
+  referenceData: ReferenceData | null; 
+  comparisonResults: ComparisonResult | null 
+}) => Promise<boolean> | boolean;
+
+// Definição dos passos com validadores contextuais
+const stepsDefinition: Array<{
+  title: string;
+  description: string;
+  validator: ContextualValidator;
+}> = [
   {
     title: "Adicione a cotação de referencia",
     description: "Envie o arquivo de cotação modelo",
-    validator: async (data: { referenceData: ReferenceData | null }) => {
-      if (!data.referenceData) {
-        toast({
-          message: "Cotação de referência obrigatória",
+    validator: async ({ referenceData }) => {
+      if (!referenceData) {
+        toast.info("Cotação de referência obrigatória", {
           description: "Por favor, adicione e processe a cotação de referência para continuar.",
-          variant: "destructive",
         });
         return false;
       }
@@ -27,12 +37,10 @@ const steps = [
   {
     title: "Arquivos de cotação",
     description: "Adicione as cotações dos fornecedores",
-    validator: async (data: { comparisonResults: ComparisonResult | null }) => {
-      if (!data.comparisonResults) {
-        toast({
-          message: "Análise de cotações obrigatória",
+    validator: async ({ comparisonResults }) => {
+      if (!comparisonResults) {
+        toast.info("Análise de cotações obrigatória", {
           description: "Por favor, adicione e processe cotações de fornecedores para continuar.",
-          variant: "destructive",
         });
         return false;
       }
@@ -44,7 +52,7 @@ const steps = [
     description: "Veja a comparação entre cotações",
     validator: () => Promise.resolve(true)
   },
-]
+];
 
 export default function StepperDemo() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -75,52 +83,56 @@ export default function StepperDemo() {
     }
   }, [comparisonResults, currentStep, visitedSteps]);
 
-  // Validadores de etapa customizados com acesso aos dados
-  const stepsWithValidation = steps.map((step, index) => {
-    if (index === 0) {
-      return {
-        ...step,
-        validator: () => step.validator({ referenceData, comparisonResults })
-      };
-    } else if (index === 1) {
-      return {
-        ...step,
-        validator: () => step.validator({ referenceData, comparisonResults })
-      };
-    }
-    return step;
+
+  const stepsWithValidation = stepsDefinition.map((step) => {
+    return {
+      title: step.title,
+      description: step.description,
+      validator: (): Promise<boolean> | boolean => {
+        return step.validator({ referenceData, comparisonResults });
+      }
+    };
   });
 
   const stepContent = {
     step1Content: (
-      <ReferenceQuotationStep 
-        onReferenceDataChange={setReferenceData}
-        referenceData={referenceData}
-      />
+      <div key="step1">
+        <ReferenceQuotationStep 
+          onReferenceDataChange={setReferenceData}
+          referenceData={referenceData}
+          key="reference-step" // Adicionada key para estabilidade
+        />
+      </div>
     ),
     step2Content: (
-      <SupplierQuotationsStep 
-        referenceData={referenceData}
-        onComparisonResultsChange={setComparisonResults}
-      />
+      <div key="step2">
+        <SupplierQuotationsStep 
+          referenceData={referenceData}
+          onComparisonResultsChange={setComparisonResults}
+          key="supplier-step" // Adicionada key para estabilidade
+        />
+      </div>
     ),
     step3Content: (
-      <ComparisonResultsStep 
-        comparisonResults={comparisonResults}
-      />
+      <div key="step3">
+        <ComparisonResultsStep 
+          comparisonResults={comparisonResults}
+          key="results-step" // Adicionada key para estabilidade
+        />
+      </div>
     )
   };
 
   return (
-    <div className="container mx-auto py-10 max-w-[70%]">
+    <div className="container mx-auto py-10 max-w-[90%]">
       <h1 className="text-2xl font-bold mb-8 text-center">Comparação de Cotações</h1>
       <Stepper
         steps={stepsWithValidation}
         currentStep={currentStep}
         onStepChange={handleStepChange}
         stepData={stepContent}
-        allowReturn={true} // Permite voltar para etapas anteriores
-        visitedSteps={Array.from(visitedSteps)} // Passa os passos já visitados
+        allowReturn={true} 
+        visitedSteps={Array.from(visitedSteps)}
       />
     </div>
   );
