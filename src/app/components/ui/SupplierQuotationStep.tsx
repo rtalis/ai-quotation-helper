@@ -96,14 +96,20 @@ export const SupplierQuotationsStep: React.FC<SupplierQuotationsStepProps> = ({
             <div className="mt-4 border rounded-md p-4 bg-card">
                 <h4 className="text-sm font-medium mb-2">Fornecedor: {quotation.supplier}</h4>
                 <div className="space-y-2">
-                    {quotation.items.map((item, index) => (
+                    { quotation.items.map((item, index) => {
+        const itemPrice = item.price ?? 0;
+        const itemQuantity = item.quantity ?? 0;
+        const hasValidPrice = itemPrice !== null && itemPrice !== undefined && itemPrice > 0;
+        
+        return (
+
                         <div key={index} className="p-3 border rounded-md bg-background">
                             <div className="flex justify-between">
                                 <span className="text-sm font-medium">{item.description}</span>
-                                <span className="text-sm font-bold">R$ {item.price.toFixed(2)}</span>
+                                <span className="text-sm font-bold">R$ {itemPrice.toFixed(2) || "0,00"}</span>
                             </div>
                             <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
-                                {item.quantity && <span>Qtd: {item.quantity}</span>}
+                                {itemQuantity && <span>Qtd: {itemQuantity}</span>}
                                 {item.manufacturer && <span>Fabricante: {item.manufacturer}</span>}
                                 {item.matchConfidence && (
                                     <span className={`font-medium ${item.matchConfidence === "Alta" ? "text-green-600" :
@@ -114,7 +120,8 @@ export const SupplierQuotationsStep: React.FC<SupplierQuotationsStepProps> = ({
                                 )}
                             </div>
                         </div>
-                    ))}
+                    );
+                })}
                 </div>
             </div>
         );
