@@ -1,57 +1,53 @@
+"use server";
+
 import { analyzeTextWithGemini } from "./gemini";
-import * as pdfjsLib from "pdfjs-dist";
 
-// Polyfill para DOMMatrix no ambiente Node.js
-if (typeof globalThis.DOMMatrix === 'undefined') {
-  const { DOMMatrix } = require('canvas');
-  globalThis.DOMMatrix = DOMMatrix;
-}
 
-// Configuração do worker
-const pdfjsWorker = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url);
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker.toString();
-
-// Função para extrair texto de um arquivo PDF
-const extractTextFromPDF = async (fileBuffer) => {
+export async function extractTextFromPDF(pdfBuffer) {
   try {
-    const pdf = await pdfjsLib.getDocument({data: fileBuffer}).promise;
-    let text = '';
-    
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      text += content.items.map(item => item.str).join(' ');
+    // Dynamically import pdf-parse only when needed
+    const pdfParse = require('pdf-parse');
+
+    const data = await pdfParse(pdfBuffer);
+    let text = data.text || "";
+    if (text.trim() === "") {
+  
+      text = data.pageData.join("\n") || "";
     }
-    
+
     return text;
   } catch (error) {
-    console.error("Erro ao extrair texto do PDF:", error);
-    throw new Error("Não foi possível processar o PDF");
+    console.error('Error extracting text from PDF:', error);
+    throw error;
   }
-};
+}
+
 // Função para analisar cotação de referência
 export const analyzeReferencePDF = async (pdfBuffer) => {
   try {
     // Extrair texto do PDF
     const pdfText = await extractTextFromPDF(pdfBuffer);
-    
+
+    if (!pdfText || pdfText.trim() === "") {
+      throw new Error("O PDF não contém texto legível ou está vazio.");
+    }
     // Criar prompt para o Gemini
     const prompt = createReferenceExtractionPrompt(pdfText);
-    
+
     // Analisar com Gemini
     const result = await analyzeTextWithGemini(prompt);
-    
+
     // Processar resposta
     try {
       // Extrair JSON da resposta
       const jsonMatch = result.match(/```json\n([\s\S]*?)\n```/);
       const jsonStr = jsonMatch ? jsonMatch[1] : result;
       const parsedResult = JSON.parse(jsonStr);
-      
+
       return parsedResult;
     } catch (error) {
       console.error("Erro ao processar resposta do Gemini:", error);
-      throw new Error("Não foi possível interpretar a resposta da IA");
+      throw new Error("Não foi possível interpretar a resposta da IA \n" + error.message);
     }
   } catch (error) {
     console.error("Erro na análise do PDF:", error);
@@ -70,7 +66,7 @@ Extraia informações estruturadas desta cotação de referência em PDF. Precis
    - Descrição detalhada
    - Quantidade
    - Unidade (un, kg, caixa, etc.)
-   - Preço unitário
+   - Preço unitário (se disponível, 0 caso não informado)
    - Preço total
    - Fabricante/marca (se disponível)
 
@@ -106,20 +102,20 @@ export const analyzeSupplierPDF = async (pdfBuffer, referenceData) => {
   try {
     // Extrair texto do PDF
     const pdfText = await extractTextFromPDF(pdfBuffer);
-    
+
     // Criar prompt para o Gemini
     const prompt = createSupplierExtractionPrompt(referenceData, pdfText);
-    
+
     // Analisar com Gemini
     const result = await analyzeTextWithGemini(prompt);
-    
+
     // Processar resposta
     try {
       // Extrair JSON da resposta
       const jsonMatch = result.match(/```json\n([\s\S]*?)\n```/);
       const jsonStr = jsonMatch ? jsonMatch[1] : result;
       const parsedResult = JSON.parse(jsonStr);
-      
+
       return {
         supplier: parsedResult.supplierName || "Fornecedor desconhecido",
         items: parsedResult.items || []
@@ -139,7 +135,7 @@ export const compareAllQuotations = async (referenceData, supplierQuotations) =>
   if (!referenceData || !referenceData.items || !supplierQuotations || supplierQuotations.length === 0) {
     throw new Error("Dados insuficientes para comparação");
   }
-  
+
   // Preparar o resultado da comparação
   const comparisonResults = {
     items: [],
@@ -149,25 +145,25 @@ export const compareAllQuotations = async (referenceData, supplierQuotations) =>
     totalBest: 0,
     totalSavings: 0
   };
-  
+
   // Para cada item na cotação de referência, encontrar todos os preços
   for (const refItem of referenceData.items) {
     const itemMatches = [];
     const allQuotesForItem = [];
-    
+
     // Buscar o item em cada cotação de fornecedor
     for (const quote of supplierQuotations) {
       // Encontrar item correspondente na cotação do fornecedor
-      const matchedItem = quote.items.find(item => 
+      const matchedItem = quote.items.find(item =>
         (item.matchedItemDescription && areSimilarDescriptions(item.matchedItemDescription, refItem.description)) ||
-        (item.code && refItem.code && item.code === refItem.code) || 
+        (item.code && refItem.code && item.code === refItem.code) ||
         areSimilarDescriptions(item.description, refItem.description)
       );
-      
+
       if (matchedItem) {
         const price = parseFloat(matchedItem.price);
         const totalPrice = price * refItem.quantity;
-        
+
         // Adicionar à lista de correspondências para encontrar o melhor preço
         itemMatches.push({
           supplier: quote.supplier,
@@ -176,7 +172,7 @@ export const compareAllQuotations = async (referenceData, supplierQuotations) =>
           manufacturer: matchedItem.manufacturer || "Não informado",
           matchConfidence: matchedItem.matchConfidence || "Média"
         });
-        
+
         // Adicionar à lista completa de cotações
         allQuotesForItem.push({
           supplier: quote.supplier,
@@ -186,13 +182,13 @@ export const compareAllQuotations = async (referenceData, supplierQuotations) =>
           manufacturer: matchedItem.manufacturer || "Não informado",
           matchConfidence: matchedItem.matchConfidence || "Média"
         });
-        
+
         // Atualizar o total do fornecedor
         if (!comparisonResults.supplierTotals[quote.supplier]) {
           comparisonResults.supplierTotals[quote.supplier] = 0;
         }
         comparisonResults.supplierTotals[quote.supplier] += totalPrice;
-        
+
         // Adicionar à lista global de cotações
         comparisonResults.allQuotes.push({
           supplier: quote.supplier,
@@ -205,17 +201,17 @@ export const compareAllQuotations = async (referenceData, supplierQuotations) =>
         });
       }
     }
-    
+
     // Se encontramos correspondências, determinar o melhor preço
     if (itemMatches.length > 0) {
       // Ordenar por preço (menor primeiro)
       itemMatches.sort((a, b) => a.totalPrice - b.totalPrice);
       const bestMatch = itemMatches[0];
-      
+
       const originalPrice = refItem.referencePrice * refItem.quantity;
-      const savings = originalPrice > 0 ? 
+      const savings = originalPrice > 0 ?
         (originalPrice - bestMatch.totalPrice) / originalPrice : 0;
-      
+
       comparisonResults.items.push({
         code: refItem.code,
         description: refItem.description,
@@ -230,7 +226,7 @@ export const compareAllQuotations = async (referenceData, supplierQuotations) =>
         savings: savings,
         allQuotes: allQuotesForItem // Adicionar todas as cotações para este item
       });
-      
+
       comparisonResults.totalOriginal += originalPrice;
       comparisonResults.totalBest += bestMatch.totalPrice;
     } else {
@@ -249,21 +245,21 @@ export const compareAllQuotations = async (referenceData, supplierQuotations) =>
         savings: 0,
         allQuotes: [] // Nenhuma cotação encontrada
       });
-      
+
       comparisonResults.totalOriginal += refItem.referencePrice * refItem.quantity;
     }
   }
-  
+
   // Calcular economia total
-  comparisonResults.totalSavings = comparisonResults.totalOriginal > 0 ? 
+  comparisonResults.totalSavings = comparisonResults.totalOriginal > 0 ?
     (comparisonResults.totalOriginal - comparisonResults.totalBest) / comparisonResults.totalOriginal : 0;
-  
+
   return comparisonResults;
 };
 
 // Prompt para extração de dados das cotações de fornecedores
 const createSupplierExtractionPrompt = (referenceData, pdfText) => {
-  const itemsList = referenceData.items.map((item, index) => 
+  const itemsList = referenceData.items.map((item, index) =>
     `${index + 1}. ${item.code ? `Código: ${item.code}, ` : ''}Descrição: "${item.description}", Unidade: ${item.unit}, Quantidade: ${item.quantity}`
   ).join('\n');
 
@@ -312,7 +308,7 @@ ${pdfText}
 // Função auxiliar para comparar similaridade de descrições
 const areSimilarDescriptions = (desc1, desc2) => {
   if (!desc1 || !desc2) return false;
-  
+
   // Simplificar as descrições para comparação
   const normalize = (text) => {
     return text.toLowerCase()
@@ -320,10 +316,10 @@ const areSimilarDescriptions = (desc1, desc2) => {
       .replace(/\s+/g, ' ')     // Normalizar espaços
       .trim();
   };
-  
+
   const normalized1 = normalize(desc1);
   const normalized2 = normalize(desc2);
-  
+
   // Verificar se uma é substring da outra
   if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) {
     return true;
@@ -341,4 +337,4 @@ const areSimilarDescriptions = (desc1, desc2) => {
          (words1.length > 0 && commonWords.length / words1.length >= 0.5) ||
          (words2.length > 0 && commonWords.length / words2.length >= 0.5);
 */
-         };
+};
